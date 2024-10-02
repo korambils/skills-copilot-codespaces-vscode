@@ -1,48 +1,54 @@
-// Create a web server
+// Create web server with Express.js
+// Load comments from JSON file
+// Add new comments to JSON file
+// Render comments in HTML
 
-// Load the http module to create an http server.
-var http = require('http');
-var fs = require('fs');
-var url = require('url');
+const express = require('express');
+const fs = require('fs');
+const app = express();
+const port = 3000;
 
-// Configure our HTTP server to respond with Hello World to all requests.
-var server = http.createServer(function (request, response) {
-    var path = url.parse(request.url).pathname;
-    switch (path) {
-        case '/':
-            response.writeHead(200, { 'Content-Type': 'text/html' });
-            response.write('<h1>Hello World!</h1>');
-            response.end();
-            break;
-        case '/socket.io.js':
-            response.writeHead(200, { 'Content-Type': 'application/javascript' });
-            var file = fs.createReadStream('node_modules/socket.io/node_modules/socket.io-client/dist/socket.io.js');
-            file.pipe(response);
-            break;
-        case '/comments':
-            if (request.method == 'POST') {
-                console.log('POST');
-                var body = '';
-                request.on('data', function (data) {
-                    body += data;
-                    console.log('Partial body: ' + body);
-                });
-                request.on('end', function () {
-                    console.log('Body: ' + body);
-                    response.writeHead(200, { 'Content-Type': 'text/html' });
-                    response.end('post received');
-                });
-            } else {
-                console.log('GET');
-                response.writeHead(200, { 'Content-Type': 'application/json' });
-                response.end('get received');
-            }
-            break;
-        default:
-            response.writeHead(404);
-            response.write('Route not defined');
-            response.end();
-    }
+// Load comments from JSON file
+const loadComments = () => {
+  const data = fs.readFileSync('comments.json');
+  return JSON.parse(data);
+};
+
+// Add new comments to JSON file
+const saveComments = (comments) => {
+  fs.writeFileSync('comments.json', JSON.stringify(comments));
+};
+
+// Render comments in HTML
+const renderComments = (comments) => {
+  let html = '';
+  comments.forEach((comment) => {
+    html += `<div>${comment.name}: ${comment.message}</div>`;
+  });
+  return html;
+};
+
+// Configure Express.js
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// GET /comments
+app.get('/comments', (req, res) => {
+  const comments = loadComments();
+  const html = renderComments(comments);
+  res.send(html);
 });
 
-// Listen on port 8000, IP defaults to
+// POST /comments
+app.post('/comments', (req, res) => {
+  const comments = loadComments();
+  comments.push(req.body);
+  saveComments(comments);
+  res.redirect('/comments');
+});
+
+// Start web server
+app.listen(port, () => {
+  console.log(`Server listening at http://localhost:${port}`);
+});
+
